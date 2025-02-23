@@ -5,6 +5,7 @@
  * @format
  */
 
+import { Camera } from 'lucide-react-native';
 import React from 'react';
 import type {PropsWithChildren} from 'react';
 import {
@@ -78,6 +79,7 @@ function App(): React.JSX.Element {
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
         backgroundColor={backgroundStyle.backgroundColor}
       />
+       <Camera color="red" size={48} />
       <ScrollView
         style={backgroundStyle}>
         <View style={{paddingRight: safePadding}}>
