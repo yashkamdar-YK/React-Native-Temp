@@ -13,6 +13,7 @@
     "lucide-react-native": "^0.475.0",
     "react": "19.0.0",
     "react-native": "0.78.0",
+    "react-native-responsive-dimensions": "^3.1.1",
     "react-native-svg": "^15.11.1"
   },
   "devDependencies": {
