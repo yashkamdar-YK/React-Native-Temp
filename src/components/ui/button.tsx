@@ -151,6 +151,9 @@ const Button: React.FC<ButtonProps> = ({
         ]}>
         {loading ? (
           <Spinner 
+          containerStyle={{
+            padding:0
+          }}
             size="small" 
             color={variant === 'light' ? COLORS.gray[800] : COLORS.white} 
           />
