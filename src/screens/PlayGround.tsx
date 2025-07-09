@@ -14,8 +14,10 @@ import TypographyShowcase from '../components/showcase/TypographyShowcase';
 import ButtonShowcase from '../components/showcase/ButtonShowcase';
 import InputShowcase from '../components/showcase/InputShowcase';
 import AccordionShowcase from '../components/showcase/AccordionShowcase';
+import SpinnerShowcase from '../components/showcase/SpinnerShowcase';
+import CardShowcase from '../components/showcase/CardShowcase';
 
-type ShowcaseType = 'typography' | 'button' | 'input' | 'accordion';
+type ShowcaseType = 'typography' | 'button' | 'input' | 'accordion' | 'spinner' | 'card';
 
 const PlayGround = () => {
   const { theme, isDark, toggleTheme } = useTheme();
@@ -26,6 +28,8 @@ const PlayGround = () => {
     { key: 'button', label: 'Buttons', component: ButtonShowcase },
     { key: 'input', label: 'Inputs', component: InputShowcase },
     { key: 'accordion', label: 'Accordions', component: AccordionShowcase },
+    { key: 'spinner', label: 'Spinners', component: SpinnerShowcase },
+    { key: 'card', label: 'Cards', component: CardShowcase },
   ] as const;
 
   const renderShowcase = () => {
@@ -124,12 +128,11 @@ const getStyles = (theme: any) =>
     navTab: {
       paddingHorizontal: theme.spacing[4],
       paddingVertical: theme.spacing[2],
-      borderRadius: theme.borderRadius.lg,
+      borderRadius: theme.borderRadius.md,
     },
     content: {
       flex: 1,
-      paddingHorizontal: theme.spacing[5],
-      paddingVertical: theme.spacing[4],
+      padding: theme.spacing[5],
     },
   });
 
