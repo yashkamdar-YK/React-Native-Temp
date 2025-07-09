@@ -6,23 +6,25 @@
  */
 
 import React from 'react';
-import { StatusBar, useColorScheme } from 'react-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { COLORS } from './src/styles/typography/colors';
+import {StatusBar, useColorScheme} from 'react-native';
+import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import RootNavigator from './src/navigation/RootNavigator';
 import PlayGround from './src/screens/PlayGround';
+import {ThemeProvider} from './src/contexts/ThemeContext';
 
 function App(): React.JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={COLORS.white}
-      />
-      {/* <RootNavigator /> */}
-      <PlayGround />
+    <GestureHandlerRootView style={{flex: 1}}>
+      <ThemeProvider>
+        <StatusBar
+          barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+          // backgroundColor={"#fff"}
+        />
+        {/* <RootNavigator /> */}
+        <PlayGround />
+      </ThemeProvider>
     </GestureHandlerRootView>
   );
 }

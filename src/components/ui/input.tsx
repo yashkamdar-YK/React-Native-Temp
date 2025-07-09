@@ -1,4 +1,4 @@
-import React, {FC, useState} from 'react';
+import React, { useState, forwardRef } from 'react';
 import {
   TextInput as RNTextInput,
   View,
@@ -6,21 +6,34 @@ import {
   StyleSheet,
   TextInputProps as RNTextInputProps,
   ViewStyle,
-  TextStyle,
   TouchableOpacity,
 } from 'react-native';
-import {COLORS, FONTS} from '../../styles/typography';
+import { cn } from '../../libs/cn';
+import { useTheme } from '../../contexts/ThemeContext';
 import {
-  responsiveHeight,
-  responsiveWidth,
-  responsiveFontSize,
-} from 'react-native-responsive-dimensions';
+  InputVariant,
+  InputSize,
+  InputState,
+  inputContainerVariants,
+  inputTextVariants,
+  inputHelperTextVariants,
+  inputIconVariants,
+  applyVariants,
+} from '../../styles/variants';
+
+export type { InputVariant, InputSize };
 
 export interface InputProps extends Omit<RNTextInputProps, 'style'> {
   /**
-   * Label text for the input
+   * Visual variant of the input
+   * @default 'default'
    */
-  label?: string;
+  variant?: InputVariant;
+  /**
+   * Size of the input
+   * @default 'md'
+   */
+  size?: InputSize;
   /**
    * Helper text displayed below the input
    */
@@ -44,22 +57,6 @@ export interface InputProps extends Omit<RNTextInputProps, 'style'> {
    */
   containerStyle?: ViewStyle;
   /**
-   * Custom styles for the input field
-   */
-  inputStyle?: TextStyle;
-  /**
-   * Custom styles for the label
-   */
-  labelStyle?: TextStyle;
-  /**
-   * Custom styles for the helper text
-   */
-  helperTextStyle?: TextStyle;
-  /**
-   * Custom styles for the error text
-   */
-  errorTextStyle?: TextStyle;
-  /**
    * Left component to render inside the input
    */
   leftComponent?: React.ReactNode;
@@ -67,88 +64,50 @@ export interface InputProps extends Omit<RNTextInputProps, 'style'> {
    * Right component to render inside the input
    */
   rightComponent?: React.ReactNode;
-  /**
-   * Whether the input has a border
-   * @default true
-   */
-  bordered?: boolean;
-  /**
-   * Border radius of the input
-   * @default 8
-   */
-  borderRadius?: number;
-  /**
-   * Background color of the input
-   * @default COLORS.white
-   */
-  backgroundColor?: string;
-  /**
-   * Border color of the input
-   * @default COLORS.gray[300]
-   */
-  borderColor?: string;
-  /**
-   * Border color when the input is focused
-   * @default COLORS.blue[500]
-   */
-  focusBorderColor?: string;
-  /**
-   * Border color when the input has an error
-   * @default COLORS.red[500]
-   */
-  errorBorderColor?: string;
-  /**
-   * Text color of the input
-   * @default COLORS.gray[900]
-   */
-  textColor?: string;
-  /**
-   * Placeholder text color
-   * @default COLORS.gray[400]
-   */
-  placeholderTextColor?: string;
-  /**
-   * Font size of the input text
-   * @default responsiveFontSize(1.8)
-   */
-  fontSize?: number;
-  /**
-   * Font family of the input text
-   * @default FONTS.REGULAR
-   */
-  fontFamily?: string;
 }
 
-const Input: FC<InputProps> = ({
-  label,
+const Input = forwardRef<RNTextInput, InputProps>(({
+  variant = 'default',
+  size = 'md',
   helperText,
   error,
   disabled = false,
   clearable = false,
   containerStyle,
-  inputStyle,
-  labelStyle,
-  helperTextStyle,
-  errorTextStyle,
   leftComponent,
   rightComponent,
-  bordered = true,
-  borderRadius = 8,
-  backgroundColor = COLORS.white,
-  borderColor = COLORS.gray[300],
-  focusBorderColor = COLORS.blue[500],
-  errorBorderColor = COLORS.red[500],
-  textColor = COLORS.gray[900],
-  placeholderTextColor = COLORS.gray[400],
-  fontSize = responsiveFontSize(1.8),
-  fontFamily = FONTS.REGULAR,
   value,
   onChangeText,
+  onFocus,
+  onBlur,
   ...rest
-}) => {
+}, ref) => {
+  const { theme } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const isPassword = rest.secureTextEntry;
+
+  // Determine current state
+  const getCurrentState = (): InputState => {
+    if (disabled) return 'disabled';
+    if (error) return 'error';
+    if (isFocused) return 'focused';
+    return 'default';
+  };
+
+  // Apply variants using the new system
+  const containerVariantStyle = applyVariants(theme, inputContainerVariants.variant, variant);
+  const containerSizeStyle = applyVariants(theme, inputContainerVariants.size, size);
+  const containerStateStyle = applyVariants(theme, inputContainerVariants.state, getCurrentState());
+  
+  const textBaseStyle = inputTextVariants.base(theme);
+  const textSizeStyle = applyVariants(theme, inputTextVariants.size, size);
+  
+  const helperBaseStyle = inputHelperTextVariants.base(theme);
+  const helperErrorStyle = error ? inputHelperTextVariants.error(theme) : {};
+  
+  const iconBaseStyle = inputIconVariants.base(theme);
+  const iconSizeStyle = applyVariants(theme, inputIconVariants.size, size);
 
   const handleClear = () => {
     if (onChangeText) {
@@ -160,10 +119,14 @@ const Input: FC<InputProps> = ({
     setShowPassword(!showPassword);
   };
 
-  const getBorderColor = () => {
-    if (error) return errorBorderColor;
-    if (isFocused) return focusBorderColor;
-    return borderColor;
+  const handleFocus = (e: any) => {
+    setIsFocused(true);
+    onFocus?.(e);
+  };
+
+  const handleBlur = (e: any) => {
+    setIsFocused(false);
+    onBlur?.(e);
   };
 
   const renderRightComponent = () => {
@@ -171,8 +134,12 @@ const Input: FC<InputProps> = ({
       return (
         <TouchableOpacity
           onPress={togglePasswordVisibility}
-          style={styles.iconContainer}>
-          <Text style={styles.iconText}>
+          style={[styles.iconContainer, { padding: theme.spacing[1] }]}>
+          <Text style={[
+            iconBaseStyle,
+            iconSizeStyle,
+            { fontSize: (iconSizeStyle.fontSize || 16) * 0.9 }
+          ]}>
             {showPassword ? 'Hide' : 'Show'}
           </Text>
         </TouchableOpacity>
@@ -183,8 +150,8 @@ const Input: FC<InputProps> = ({
       return (
         <TouchableOpacity
           onPress={handleClear}
-          style={styles.iconContainer}>
-          <Text style={styles.iconText}>✕</Text>
+          style={[styles.iconContainer, { padding: theme.spacing[1] }]}>
+          <Text style={[iconBaseStyle, iconSizeStyle]}>✕</Text>
         </TouchableOpacity>
       );
     }
@@ -193,123 +160,66 @@ const Input: FC<InputProps> = ({
   };
 
   return (
-    <View style={[styles.container, containerStyle]}>
-      {label && (
-        <Text
-          style={[
-            styles.label,
-            {color: error ? COLORS.red[500] : COLORS.gray[700]},
-            labelStyle,
-          ]}>
-          {label}
-        </Text>
-      )}
-      <View
-        style={[
-          styles.inputContainer,
-          bordered && {
-            borderWidth: 1,
-            borderColor: getBorderColor(),
-            borderRadius,
-          },
-          {backgroundColor},
-          disabled && styles.disabled,
-        ]}>
+    <View>
+      <View style={cn(
+        styles.inputContainer,
+        containerVariantStyle,
+        containerSizeStyle,
+        containerStateStyle,
+        containerStyle
+      )}>
         {leftComponent && (
-          <View style={styles.leftComponent}>{leftComponent}</View>
+          <View style={[styles.leftComponent, { marginRight: theme.spacing[2] }]}>
+            {leftComponent}
+          </View>
         )}
         <RNTextInput
+          ref={ref}
           style={[
             styles.input,
-            {
-              color: textColor,
-              fontSize,
-              fontFamily,
-            },
-            leftComponent ? styles.inputWithLeft : null,
-            (rightComponent || clearable || isPassword) ? styles.inputWithRight : null,
-            inputStyle,
+            textBaseStyle,
+            textSizeStyle,
+            leftComponent ? { marginLeft: theme.spacing[2] } : undefined,
+            (rightComponent || clearable || isPassword) ? { marginRight: theme.spacing[2] } : undefined,
           ]}
           value={value}
           onChangeText={onChangeText}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
           editable={!disabled}
-          placeholderTextColor={placeholderTextColor}
+          placeholderTextColor={theme.colors.mutedForeground}
           secureTextEntry={isPassword && !showPassword}
           {...rest}
         />
         {renderRightComponent() && (
-          <View style={styles.rightComponent}>
+          <View style={[styles.rightComponent, { marginLeft: theme.spacing[2] }]}>
             {renderRightComponent()}
           </View>
         )}
       </View>
       {(helperText || error) && (
-        <Text
-          style={[
-            styles.helperText,
-            error ? styles.errorText : null,
-            helperTextStyle,
-            error && errorTextStyle,
-          ]}>
+        <Text style={[helperBaseStyle, helperErrorStyle]}>
           {error || helperText}
         </Text>
       )}
     </View>
   );
-};
+});
+
+Input.displayName = 'Input';
 
 const styles = StyleSheet.create({
-  container: {
-    marginBottom: responsiveHeight(2),
-  },
-  label: {
-    fontSize: responsiveFontSize(1.6),
-    fontFamily: FONTS.MEDIUM,
-    marginBottom: responsiveHeight(0.5),
-  },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: responsiveWidth(3),
-    paddingVertical: responsiveHeight(1),
   },
   input: {
     flex: 1,
     padding: 0,
   },
-  inputWithLeft: {
-    marginLeft: responsiveWidth(2),
-  },
-  inputWithRight: {
-    marginRight: responsiveWidth(2),
-  },
-  leftComponent: {
-    marginRight: responsiveWidth(1),
-  },
-  rightComponent: {
-    marginLeft: responsiveWidth(1),
-  },
-  iconContainer: {
-    padding: responsiveWidth(1),
-  },
-  iconText: {
-    fontSize: responsiveFontSize(1.6),
-    color: COLORS.gray[500],
-  },
-  helperText: {
-    fontSize: responsiveFontSize(1.4),
-    fontFamily: FONTS.REGULAR,
-    color: COLORS.gray[500],
-    marginTop: responsiveHeight(0.5),
-  },
-  errorText: {
-    color: COLORS.red[500],
-  },
-  disabled: {
-    opacity: 0.5,
-  },
+  leftComponent: {},
+  rightComponent: {},
+  iconContainer: {},
 });
 
-export default Input; 
+export default Input;

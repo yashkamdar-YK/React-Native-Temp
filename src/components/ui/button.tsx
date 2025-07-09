@@ -1,4 +1,4 @@
-import React, {useRef} from 'react';
+import React, { useRef } from 'react';
 import {
   TouchableOpacity,
   Text,
@@ -7,27 +7,18 @@ import {
   View,
   Animated,
   TextStyle,
+  ActivityIndicator,
 } from 'react-native';
-import {COLORS, FONTS} from '../../styles/typography';
+import { useTheme } from '../../contexts/ThemeContext';
 import {
-  responsiveHeight,
-  responsiveWidth,
-  responsiveFontSize,
-} from 'react-native-responsive-dimensions';
-import Spinner from './spinner';
+  ButtonVariant,
+  ButtonSize,
+  buttonContainerVariants,
+  buttonTextVariants,
+  applyVariants,
+} from '../../styles/variants';
 
-export type ButtonVariant =
-  | 'default'
-  | 'primary'
-  | 'secondary'
-  | 'success'
-  | 'danger'
-  | 'warning'
-  | 'info'
-  | 'light'
-  | 'dark';
-
-export type ButtonSize = 'small' | 'medium' | 'large';
+export type { ButtonVariant, ButtonSize };
 
 export interface ButtonProps {
   /**
@@ -37,7 +28,7 @@ export interface ButtonProps {
   /**
    * Button text content
    */
-  title: string;
+  title?: string;
   /**
    * Visual style variant of the button
    * @default 'default'
@@ -45,7 +36,7 @@ export interface ButtonProps {
   variant?: ButtonVariant;
   /**
    * Size variant of the button
-   * @default 'medium'
+   * @default 'md'
    */
   size?: ButtonSize;
   /**
@@ -67,13 +58,9 @@ export interface ButtonProps {
    */
   textStyle?: TextStyle;
   /**
-   * Node to render before the button text
+   * Custom children to render instead of title
    */
-  leftNode?: React.ReactNode;
-  /**
-   * Node to render after the button text
-   */
-  rightNode?: React.ReactNode;
+  children?: React.ReactNode;
   /**
    * Whether to disable the scale animation
    * @default false
@@ -85,19 +72,27 @@ const Button: React.FC<ButtonProps> = ({
   onPress,
   title,
   variant = 'default',
-  size = 'medium',
+  size = 'md',
   disabled = false,
   loading = false,
   style,
   textStyle,
-  leftNode,
-  rightNode,
+  children,
   disableAnimation = false,
 }) => {
+  const { theme } = useTheme();
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
+  // Apply variants using the new system
+  const containerVariantStyle = applyVariants(theme, buttonContainerVariants.variant, variant);
+  const containerSizeStyle = applyVariants(theme, buttonContainerVariants.size, size);
+  
+  const textBaseStyle = buttonTextVariants.base(theme);
+  const textVariantStyle = applyVariants(theme, buttonTextVariants.variant, variant);
+  const textSizeStyle = applyVariants(theme, buttonTextVariants.size, size);
+
   const handlePressIn = () => {
-    if (disableAnimation) return;
+    if (disableAnimation || disabled || loading) return;
     Animated.spring(scaleAnim, {
       toValue: 0.95,
       useNativeDriver: true,
@@ -105,7 +100,7 @@ const Button: React.FC<ButtonProps> = ({
   };
 
   const handlePressOut = () => {
-    if (disableAnimation) return;
+    if (disableAnimation || disabled || loading) return;
     Animated.spring(scaleAnim, {
       toValue: 1,
       friction: 3,
@@ -114,26 +109,53 @@ const Button: React.FC<ButtonProps> = ({
     }).start();
   };
 
-  const buttonStyles = [
+  const getSpinnerColor = () => {
+    switch (variant) {
+      case 'outline':
+      case 'ghost':
+      case 'link':
+        return theme.colors.foreground;
+      case 'secondary':
+        return theme.colors.secondaryForeground;
+      case 'destructive':
+        return theme.colors.destructiveForeground;
+      default:
+        return theme.colors.primaryForeground;
+    }
+  };
+
+  const isDisabled = disabled || loading;
+  
+  const containerStyle = [
     styles.button,
-    styles[variant],
-    styles[size],
-    (disabled || loading) && styles.disabled,
+    containerVariantStyle,
+    containerSizeStyle,
+    isDisabled && { opacity: 0.5 },
     style,
   ];
 
-  const textStyles = [
-    styles.text,
-    styles[`${size}Text`],
-    styles[`${variant}Text`],
+  const finalTextStyle = [
+    textBaseStyle,
+    textVariantStyle,
+    textSizeStyle,
     textStyle,
   ];
 
-  const content = (
+  const content = children || (
     <View style={styles.contentContainer}>
-      {leftNode}
-      <Text style={textStyles}>{title}</Text>
-      {rightNode}
+      {loading ? (
+        <ActivityIndicator 
+          size="small" 
+          color={getSpinnerColor()}
+          style={{ marginRight: title ? theme.spacing[2] : 0 }}
+        />
+      ) : null}
+      {title && !loading && (
+        <Text style={finalTextStyle}>{title}</Text>
+      )}
+      {title && loading && (
+        <Text style={[finalTextStyle, { marginLeft: theme.spacing[2] }]}>{title}</Text>
+      )}
     </View>
   );
 
@@ -142,24 +164,14 @@ const Button: React.FC<ButtonProps> = ({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       onPress={onPress}
-      disabled={disabled || loading}
+      disabled={isDisabled}
       activeOpacity={1}>
       <Animated.View
         style={[
-          buttonStyles,
-          {transform: [{scale: scaleAnim}]},
+          containerStyle,
+          !disableAnimation && { transform: [{ scale: scaleAnim }] },
         ]}>
-        {loading ? (
-          <Spinner 
-          containerStyle={{
-            padding:0
-          }}
-            size="small" 
-            color={variant === 'light' ? COLORS.gray[800] : COLORS.white} 
-          />
-        ) : (
-          content
-        )}
+        {children ? children : content}
       </Animated.View>
     </TouchableOpacity>
   );
@@ -167,103 +179,14 @@ const Button: React.FC<ButtonProps> = ({
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: responsiveHeight(1),
     justifyContent: 'center',
     alignItems: 'center',
+    flexDirection: 'row',
   },
   contentContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  text: {
-    fontFamily: FONTS.MEDIUM,
-    paddingHorizontal: responsiveWidth(2),
-  },
-  // Button variants
-  default: {
-    backgroundColor: COLORS.gray[500],
-  },
-  primary: {
-    backgroundColor: COLORS.blue[600],
-  },
-  secondary: {
-    backgroundColor: COLORS.purple[600],
-  },
-  success: {
-    backgroundColor: COLORS.green[600],
-  },
-  danger: {
-    backgroundColor: COLORS.red[600],
-  },
-  warning: {
-    backgroundColor: COLORS.yellow[600],
-  },
-  info: {
-    backgroundColor: COLORS.blue[400],
-  },
-  light: {
-    backgroundColor: COLORS.gray[100],
-  },
-  dark: {
-    backgroundColor: COLORS.gray[800],
-  },
-  // Text colors for variants
-  defaultText: {
-    color: COLORS.white,
-  },
-  primaryText: {
-    color: COLORS.white,
-  },
-  secondaryText: {
-    color: COLORS.white,
-  },
-  successText: {
-    color: COLORS.white,
-  },
-  dangerText: {
-    color: COLORS.white,
-  },
-  warningText: {
-    color: COLORS.white,
-  },
-  infoText: {
-    color: COLORS.white,
-  },
-  lightText: {
-    color: COLORS.gray[800],
-  },
-  darkText: {
-    color: COLORS.white,
-  },
-  // Button sizes
-  small: {
-    paddingVertical: responsiveHeight(0.8),
-    paddingHorizontal: responsiveWidth(3),
-  },
-  medium: {
-    paddingVertical: responsiveHeight(1.2),
-    paddingHorizontal: responsiveWidth(4),
-  },
-  large: {
-    paddingVertical: responsiveHeight(1.6),
-    paddingHorizontal: responsiveWidth(5),
-  },
-  // Text sizes
-  smallText: {
-    fontSize: responsiveFontSize(1.6),
-    lineHeight: responsiveFontSize(2.2),
-  },
-  mediumText: {
-    fontSize: responsiveFontSize(1.8),
-    lineHeight: responsiveFontSize(2.4),
-  },
-  largeText: {
-    fontSize: responsiveFontSize(2),
-    lineHeight: responsiveFontSize(2.6),
-  },
-  disabled: {
-    opacity: 0.5,
   },
 });
 

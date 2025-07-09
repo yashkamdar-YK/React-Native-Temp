@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -9,21 +9,28 @@ import {
   UIManager,
   ViewStyle,
 } from 'react-native';
-import {COLORS, FONTS} from '../../styles/typography';
+import { ChevronDown } from 'lucide-react-native';
+import { useTheme } from '../../contexts/ThemeContext';
+import Typography from './typography';
 import {
-  responsiveHeight,
-  responsiveWidth,
-  responsiveFontSize,
-} from 'react-native-responsive-dimensions';
-import Heading from './heading';
-import {ChevronDown} from 'lucide-react-native';
+  AccordionVariant,
+  AccordionSize,
+  accordionContainerVariants,
+  accordionHeaderVariants,
+  accordionContentVariants,
+  accordionTitleVariants,
+  accordionIconVariants,
+  applyVariants,
+} from '../../styles/variants';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-export interface AccordionItemProps {
+export type { AccordionVariant, AccordionSize };
+
+export interface AccordionProps {
   /**
    * Title of the accordion item
    */
@@ -31,14 +38,29 @@ export interface AccordionItemProps {
   /**
    * Content of the accordion item
    */
-  content: React.ReactNode;
+  children: React.ReactNode;
+  /**
+   * Visual variant of the accordion
+   * @default 'default'
+   */
+  variant?: AccordionVariant;
+  /**
+   * Size variant of the accordion
+   * @default 'md'
+   */
+  size?: AccordionSize;
   /**
    * Whether the accordion item is initially expanded
    * @default false
    */
   defaultExpanded?: boolean;
   /**
-   * Custom styles for the accordion item container
+   * Whether the accordion is disabled
+   * @default false
+   */
+  disabled?: boolean;
+  /**
+   * Custom styles for the accordion container
    */
   containerStyle?: ViewStyle;
   /**
@@ -50,88 +72,96 @@ export interface AccordionItemProps {
    */
   contentStyle?: ViewStyle;
   /**
-   * Custom styles for the title container
-   */
-  titleStyle?: ViewStyle;
-  /**
-   * Border color of the accordion item
-   * @default COLORS.gray[200]
-   */
-  borderColor?: string;
-  /**
-   * Background color of the accordion item
-   * @default COLORS.white
-   */
-  backgroundColor?: string;
-  /**
-   * Border radius of the accordion item
-   * @default 12
-   */
-  borderRadius?: number;
-  /**
-   * Padding of the header
-   * @default 16
-   */
-  headerPadding?: number;
-  /**
-   * Padding of the content
-   * @default 16
-   */
-  contentPadding?: number;
-  /**
-   * Size of the chevron icon
-   * @default 24
-   */
-  chevronSize?: number;
-  /**
-   * Color of the chevron icon
-   * @default COLORS.gray[700]
-   */
-  chevronColor?: string;
-  /**
    * Animation duration in milliseconds
    * @default 300
    */
   animationDuration?: number;
   /**
+   * Whether to disable animations
+   * @default false
+   */
+  disableAnimation?: boolean;
+  /**
    * Callback when the accordion item is expanded or collapsed
    */
-  onChange?: (expanded: boolean) => void;
+  onToggle?: (expanded: boolean) => void;
+  /**
+   * Custom icon to use instead of chevron
+   */
+  icon?: React.ReactNode;
+  /**
+   * Whether to hide the expand/collapse icon
+   * @default false
+   */
+  hideIcon?: boolean;
 }
 
-const AccordionItem: React.FC<AccordionItemProps> = ({
+const Accordion: React.FC<AccordionProps> = ({
   title,
-  content,
+  children,
+  variant = 'default',
+  size = 'md',
   defaultExpanded = false,
+  disabled = false,
   containerStyle,
   headerStyle,
   contentStyle,
-  titleStyle,
-  borderColor = COLORS.gray[200],
-  backgroundColor = COLORS.white,
-  borderRadius = 12,
-  headerPadding = 16,
-  contentPadding = 16,
-  chevronSize = 24,
-  chevronColor = COLORS.gray[700],
   animationDuration = 300,
-  onChange,
+  disableAnimation = false,
+  onToggle,
+  icon,
+  hideIcon = false,
 }) => {
+  const { theme } = useTheme();
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const animatedRotation = new Animated.Value(expanded ? 1 : 0);
+  const animatedRotation = useRef(new Animated.Value(defaultExpanded ? 1 : 0)).current;
+
+  // Apply variants using the new system
+  const containerVariantStyle = applyVariants(theme, accordionContainerVariants.variant, variant);
+  const containerSizeStyle = applyVariants(theme, accordionContainerVariants.size, size);
+  
+  const headerVariantStyle = applyVariants(theme, accordionHeaderVariants.variant, variant);
+  const headerSizeStyle = applyVariants(theme, accordionHeaderVariants.size, size);
+  const headerStateStyle = expanded 
+    ? accordionHeaderVariants.state.expanded(theme) 
+    : accordionHeaderVariants.state.default(theme);
+  
+  const contentVariantStyle = applyVariants(theme, accordionContentVariants.variant, variant);
+  const contentSizeStyle = applyVariants(theme, accordionContentVariants.size, size);
+  
+  const titleBaseStyle = accordionTitleVariants.base(theme);
+  const titleSizeStyle = applyVariants(theme, accordionTitleVariants.size, size);
+  
+  const iconSizeStyle = applyVariants(theme, accordionIconVariants.size, size);
+  const iconStateStyle = expanded 
+    ? accordionIconVariants.state.expanded(theme)
+    : accordionIconVariants.state.default(theme);
 
   const toggleExpand = () => {
-    // Configure the animation
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    
-    Animated.timing(animatedRotation, {
-      toValue: expanded ? 0 : 1,
-      duration: animationDuration,
-      useNativeDriver: true,
-    }).start();
-    
-    setExpanded(!expanded);
-    onChange?.(!expanded);
+    if (disabled) return;
+
+    if (!disableAnimation) {
+      LayoutAnimation.configureNext({
+        duration: animationDuration,
+        create: {
+          type: LayoutAnimation.Types.easeInEaseOut,
+          property: LayoutAnimation.Properties.opacity,
+        },
+        update: {
+          type: LayoutAnimation.Types.easeInEaseOut,
+        },
+      });
+
+      Animated.timing(animatedRotation, {
+        toValue: expanded ? 0 : 1,
+        duration: animationDuration,
+        useNativeDriver: true,
+      }).start();
+    }
+
+    const newExpanded = !expanded;
+    setExpanded(newExpanded);
+    onToggle?.(newExpanded);
   };
 
   const rotateIcon = animatedRotation.interpolate({
@@ -139,64 +169,67 @@ const AccordionItem: React.FC<AccordionItemProps> = ({
     outputRange: ['0deg', '180deg'],
   });
 
+  const renderIcon = () => {
+    if (hideIcon) return null;
+    
+    if (icon) return icon;
+    
+    return (
+      <Animated.View 
+        style={!disableAnimation ? { transform: [{ rotate: rotateIcon }] } : undefined}>
+        <ChevronDown 
+          size={iconSizeStyle.size} 
+          color={iconStateStyle.color} 
+        />
+      </Animated.View>
+    );
+  };
+
   return (
-    <View
-      style={[
-        styles.itemContainer,
-        {
-          borderColor,
-          backgroundColor,
-          borderRadius,
-        },
-        containerStyle,
-      ]}>
+    <View style={[
+      styles.container,
+      containerVariantStyle,
+      containerSizeStyle,
+      disabled && { opacity: 0.5 },
+      containerStyle,
+    ]}>
       <TouchableOpacity
         style={[
-          styles.headerContainer,
-          {
-            padding: headerPadding,
-          },
+          styles.header,
+          headerVariantStyle,
+          headerSizeStyle,
+          headerStateStyle,
           headerStyle,
         ]}
         onPress={toggleExpand}
-        activeOpacity={0.7}>
-        <View
-          style={[
-            styles.titleContainer,
-            {
-              paddingRight: headerPadding,
-            },
-            titleStyle,
-          ]}>
-          <Heading
-            size="sm"
-            weight="SEMI_BOLD"
+        disabled={disabled}
+        activeOpacity={0.8}>
+        
+        <View style={styles.titleContainer}>
+          <Typography
+            variant="subtitle2"
+            style={[titleBaseStyle, titleSizeStyle]}
             numberOfLines={expanded ? undefined : 2}>
             {title}
-          </Heading>
+          </Typography>
         </View>
 
-        <Animated.View style={{transform: [{rotate: rotateIcon}]}}>
-          <ChevronDown size={chevronSize} color={chevronColor} />
-        </Animated.View>
+        {renderIcon()}
       </TouchableOpacity>
 
       {expanded && (
-        <View
-          style={[
-            styles.contentContainer,
-            {
-              paddingHorizontal: contentPadding,
-              paddingBottom: contentPadding,
-            },
-            contentStyle,
-          ]}>
-          {typeof content === 'string' ? (
-            <Heading size="sm" color={COLORS.gray[600]}>
-              {content}
-            </Heading>
+        <View style={[
+          styles.content,
+          contentVariantStyle,
+          contentSizeStyle,
+          contentStyle,
+        ]}>
+          {typeof children === 'string' ? (
+            <Typography variant="body2" color="muted">
+              {children}
+            </Typography>
           ) : (
-            content
+            children
           )}
         </View>
       )}
@@ -204,12 +237,84 @@ const AccordionItem: React.FC<AccordionItemProps> = ({
   );
 };
 
+// Accordion Group Component for multiple accordions
+export interface AccordionGroupProps {
+  /**
+   * Array of accordion items
+   */
+  children: React.ReactNode;
+  /**
+   * Whether to allow multiple items to be expanded at once
+   * @default true
+   */
+  allowMultiple?: boolean;
+  /**
+   * Visual variant for all accordions in the group
+   */
+  variant?: AccordionVariant;
+  /**
+   * Size for all accordions in the group
+   */
+  size?: AccordionSize;
+  /**
+   * Custom container style
+   */
+  style?: ViewStyle;
+}
+
+export const AccordionGroup: React.FC<AccordionGroupProps> = ({
+  children,
+  allowMultiple = true,
+  variant,
+  size,
+  style,
+}) => {
+  const { theme } = useTheme();
+  const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
+
+  const handleToggle = (index: number, expanded: boolean) => {
+    if (!allowMultiple && expanded) {
+      // Close all other items
+      setExpandedItems(new Set([index]));
+    } else {
+      setExpandedItems(prev => {
+        const newSet = new Set(prev);
+        if (expanded) {
+          newSet.add(index);
+        } else {
+          newSet.delete(index);
+        }
+        return newSet;
+      });
+    }
+  };
+
+  return (
+    <View style={[{ gap: theme.spacing[2] }, style]}>
+      {React.Children.map(children, (child, index) => {
+        if (React.isValidElement(child) && child.type === Accordion) {
+          const childProps = child.props as AccordionProps;
+          return React.cloneElement(child as React.ReactElement<AccordionProps>, {
+            ...childProps,
+            variant: variant || childProps.variant,
+            size: size || childProps.size,
+            onToggle: (expanded: boolean) => {
+              handleToggle(index, expanded);
+              childProps.onToggle?.(expanded);
+            },
+          });
+        }
+        return child;
+      })}
+    </View>
+  );
+};
+
 const styles = StyleSheet.create({
-  itemContainer: {
-    borderWidth: 1,
-    marginBottom: responsiveHeight(1.5),
+  container: {
+    overflow: 'hidden',
   },
-  headerContainer: {
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -217,7 +322,7 @@ const styles = StyleSheet.create({
   titleContainer: {
     flex: 1,
   },
-  contentContainer: {},
+  content: {},
 });
 
-export default AccordionItem;
+export default Accordion;
