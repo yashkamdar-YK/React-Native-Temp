@@ -16,6 +16,7 @@ import InputShowcase from '../components/showcase/InputShowcase';
 import AccordionShowcase from '../components/showcase/AccordionShowcase';
 import SpinnerShowcase from '../components/showcase/SpinnerShowcase';
 import CardShowcase from '../components/showcase/CardShowcase';
+import AlertShowcase from '../components/showcase/AlertShowcase';
 
 type ShowcaseType = 'typography' | 'button' | 'input' | 'accordion' | 'spinner' | 'card';
 
@@ -30,6 +31,7 @@ const PlayGround = () => {
     { key: 'accordion', label: 'Accordions', component: AccordionShowcase },
     { key: 'spinner', label: 'Spinners', component: SpinnerShowcase },
     { key: 'card', label: 'Cards', component: CardShowcase },
+    { key: 'alert', label: 'Alert', component: AlertShowcase },
   ] as const;
 
   const renderShowcase = () => {
